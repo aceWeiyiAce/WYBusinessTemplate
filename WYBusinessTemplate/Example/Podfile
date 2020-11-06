@@ -1,0 +1,18 @@
+#
+#  Podfile
+#  PROJECT
+#
+#  Created by CREATEDBYAUTHOR on YEAR/MONTH/DAY.
+#  Copyright (c) YEAR CUSTOMORGANIZATIONNAME. All rights reserved.
+#
+
+source 'http://dev45.gitlab.miyabaobei.com/iOS/MIASpecs.git'
+source 'https://github.com/CocoaPods/Specs.git'
+
+use_frameworks!
+
+target 'PROJECT' do
+    platform :ios, '8.0'
+    inhibit_all_warnings!
+
+end
