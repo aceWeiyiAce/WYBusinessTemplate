@@ -262,7 +262,6 @@
 				6003F588195388D20070C39A /* Resources */,
 				70349E0579CEE89D166753FD /* [CP] Embed Pods Frameworks */,
 				EAACF409B391E74E4084A1B5 /* [CP] Copy Pods Resources */,
-				3AD17363255548B200F0E976 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -293,7 +292,6 @@
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				English,
 				en,
 				Base,
 				"zh-Hans",
@@ -322,23 +320,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		3AD17363255548B200F0E976 /* ShellScript */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "require 'colored2'\nrequire 'FileUtils'\n\nmodule Pod\n  class TemplateConfigurator\n    \n        attr_reader :prefix, :created_by, :organization\n\n        def initialize(pod_name = \"CPDBusinessModule\")\n          @pod_name = pod_name\n          @pod_dir = File.dirname(File.dirname(File.expand_path(__FILE__)))\n          @prefix = \"CPD\"\n          @func_prefix = \"funccpd\"\n          @created_by = \"CREATEDBYAUTHOR\"\n          @organization = \"CUSTOMORGANIZATIONNAME\"\n          @homepage_url = \"HOMEPAGE_URL\"\n          @repo_url = \"REPO_URL\"\n        end\n    \n        def run\n\n          get_infos\n\n          puts \"\\n\" + \"begin TemplateConfigurator\".magenta + \" on your new library.\"\n          puts \"\"\n\n          Dir.chdir(@pod_dir)\n          @string_replacements = {\n            \"PROJECT\" => @pod_name,\n            \"CPD\" => @prefix,\n            \"Funccpd\" => @func_prefix[0].upcase + @func_prefix[1, @func_prefix.length],\n            \"funccpd\" => @func_prefix,\n            \"CREATEDBYAUTHOR\" => @created_by,\n            \"CUSTOMORGANIZATIONNAME\" => @organization\n          }\n\n          clean_template_files\n          rename_template_files\n          podspec_replace\n          rename_file\n\n          puts \"\\n\" + \"End TemplateConfigurator\".magenta + \" on your new library.\"\n          puts \"\"\n\n          ensure_carthage_compatibility\n          reinitialize_git_repo\n          run_pod_install\n          farewell_message\n\n        end\n\n        def get_infos\n          loop do\n            @homepage_url = ask(\"Homepage:\")\n            @repo_url = ask(\"Repo:\")\n            @organization = ask(\"Organization:\")\n            @created_by = (ENV['GIT_COMMITTER_NAME'] || `git config user.name`).strip\n            @prefix = ask(\"Prefix:\")\n            @func_prefix = ask(\"Function prefix:\")\n\n            puts \"\"\n            puts \"Homepage: \" + @homepage_url.magenta\n            puts \"Repo: \" + @repo_url.magenta\n            puts \"Organization: \" + @organization.magenta\n            puts \"Created by: \" + @created_by.magenta\n            puts \"Prefix: \" + @prefix.magenta\n            puts \"Function prefix: \" + @func_prefix.magenta\n\n            sure = \"\"\n            loop do\n              sure = ask(\"Begin? [YES / NO]\").upcase\n              if sure == \"YES\" || sure == \"Y\" || sure == \"NO\" || sure == \"N\"\n                break\n              end\n            end\n\n            if sure == \"YES\" || sure == \"Y\"\n              break\n            end\n          end\n        end\n  \n        def rename_file\n          puts \"\\nRunning \" + \"rename files\".magenta + \" on your new library.\"\n          puts \"\"\n\n          dirs = Dir.glob(\"#{@pod_dir}/**/**\")\n          dirs.reverse_each do |name|\n            basename = File.basename(name)\n            dirname = File.dirname(name)\n            if (dirname.include? \"Pods\") || (dirname.include? \"VendoredFrameworks\") || (dirname.include? \"setup\")\n              next\n            end\n            if File.file?(name) && !(dirname.include? \".xcassets\")\n              text = File.read(name)\n              for find, replace in @string_replacements do\n                text = text.gsub(find, replace)\n              end\n              text = text.gsub(\"YEAR\", year)\n              text = text.gsub(\"MONTH\", month)\n              text = text.gsub(\"DAY\", day)\n              File.open(name, \"w\") { |file| file.puts text }\n            end\n            new_basename = basename.gsub(\"PROJECT\", @pod_name)\n            new_basename = new_basename.gsub(\"CPD\", @prefix)\n            new_name = File.join(dirname, new_basename)\n            File.rename(name, new_name)\n            puts new_name\n          end\n  \n        end\n\n        def podspec_replace\n          podspec = File.join(@pod_dir, \"PROJECT.podspec\")\n          text = File.read(podspec)\n          text = text.gsub(\"HOMEPAGE_URL\", @homepage_url)\n          text = text.gsub(\"REPO_URL\", @repo_url)\n          File.open(podspec, \"w\") { |file| file.puts text }\n        end\n  \n        def run_pod_install\n          puts \"\\nRunning \" + \"pod install\".magenta + \" on your new library.\"\n          puts \"\"\n          \n          Dir.chdir(File.join(@pod_dir, \"Example\")) do\n            system \"pod install\"\n          end\n    \n          `git add #{@pod_dir}/Example/#{@pod_name}.xcodeproj/project.pbxproj`\n          `git add #{@pod_dir}/Example/Podfile.lock`\n          `git add #{@pod_dir}/Example/#{@pod_name}.xcworkspace/contents.xcworkspacedata`\n          `git commit -m \"Initial commit\"`\n        end\n  \n        def ensure_carthage_compatibility\n          FileUtils.ln_s(File.join(@pod_dir, 'Example/Pods/Pods.xcodeproj'), File.join(@pod_dir, '_Pods.xcodeproj'))\n        end\n  \n        def clean_template_files\n          puts \"\\n\" + \"Clean template files\".magenta + \" on your new library.\"\n          puts \"\"\n\n          [\"setup\", \"configure\", \"README.md\", \"LICENSE\", \"Example/PROJECT.xcodeproj/xcshareddata/IDETemplateMacros.plist\"].each do |asset|\n            file_path = File.join(@pod_dir, asset)\n            `rm -rf #{file_path}`\n          end\n        end\n\n        def rename_template_files\n          FileUtils.mv File.join(@pod_dir, \"POD_README.md\"), File.join(@pod_dir, \"README.md\")\n          FileUtils.mv File.join(@pod_dir, \"POD_LICENSE\"), File.join(@pod_dir, \"LICENSE\")\n        end\n\n        def reinitialize_git_repo\n          Dir.chdir(@pod_dir) do\n            `rm -rf .git`\n            `git init`\n            `git add -A`\n            `git remote add origin #{@repo_url}`\n          end\n        end\n\n        def farewell_message\n          puts \"\"\n    \n          puts \" Ace! you're ready to go!\"\n          puts \" We will start you off by opening your project in Xcode\"\n          run_command \"open '#{@pod_dir}/Example/#{@pod_name}.xcworkspace'\"\n        end\n\n        def run_command command, output_command=nil\n          output_command ||= command\n    \n          puts \"  \" + output_command.magenta\n          system command\n        end\n\n        def ask(question)\n          answer = \"\"\n          loop do\n            puts \"\\n#{question}\"\n            print \" > \".green\n            answer = gets.chomp\n            answer = answer.strip\n            if answer.length > 0\n              break\n            end\n          end\n          answer.to_s\n        end\n  \n        def year\n          Time.now.year.to_s\n        end\n  \n        def month\n          Time.now.month.to_s\n        end\n  \n        def day\n          Time.now.day.to_s\n        end\n  end\nend\n";
-		};
 		70349E0579CEE89D166753FD /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
